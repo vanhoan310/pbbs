@@ -175,6 +175,7 @@ int parallel_main(int argc, char* argv[]) {
         end = chrono::steady_clock::now();
         cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
 
+        start = chrono::steady_clock::now();
         d_max = d_max/2.0;
         float d_min = d_max/100.0;
         int n_points = min(1000, n_sets);
@@ -182,7 +183,8 @@ int parallel_main(int argc, char* argv[]) {
         vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_sets);
         vector<int> fill_setcover = fill_in(setcover, n_sets, n_points);
         sc_solutions.push_back(fill_setcover);
-
+        end = chrono::steady_clock::now();
+        cout << "setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
     }
     else 
     {
@@ -194,6 +196,7 @@ int parallel_main(int argc, char* argv[]) {
         auto end2 = chrono::steady_clock::now();
         cout << "run box algorithm in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
 
+        // compute distance matrix
         start = chrono::steady_clock::now();
         n_boxes = (int) box_idx.size();
         vector<vector<float>> Dist(n_boxes, vector<float>(n_boxes,0.0));
@@ -211,6 +214,7 @@ int parallel_main(int argc, char* argv[]) {
         end = chrono::steady_clock::now();
         cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
 
+        // compute set cover 
         start = chrono::steady_clock::now();
         d_max = d_max/2.0;
         float d_min = d_max/100.0;
@@ -226,7 +230,6 @@ int parallel_main(int argc, char* argv[]) {
         end = chrono::steady_clock::now();
         cout << "setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
     }
-
     //write solution to file
     string fileName = dataname + "_setcover_solutions.csv";
     writeVec2File(fileName, sc_solutions);

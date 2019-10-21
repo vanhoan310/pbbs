@@ -3,14 +3,14 @@
 #include <string>
 #include <fstream>
 #include <cstdio>
+#include <iomanip>      // std::setprecision
 #include <omp.h>
 #include "util_functions.h"
 #include <chrono>
 using namespace std;
-using namespace benchIO;
 
 template <class T>
-vector<T> HDscore(const vector<vector<T>> & distance_mat, const vector<int> & setcover, int n_sets, int k)
+vector<T> HDscore(const vector<vector<T>> & distance_mat, const vector<int> & setcover, int n_sets, int n_dim, int k)
 {
     vector<T> scores(n_sets);
     int i,j;
@@ -47,10 +47,13 @@ int main(int argc, char* argv[])
 
     string solfilename = dataname+"_setcover_solutions.csv";
     vector<vector<int>> solutions = parse2DCsvFile(solfilename);
-    int q = max(1, (int) 1e-4*n_sets);
+    int q = max(1, (int) (1e-4* (float) n_sets));
     for (auto sol: solutions){
-        vector<double> hdscore = HDscore(distance_mat, sol, n_sets, q);
-        print_vec(sol);
+        vector<double> hdscore = HDscore(distance_mat, sol, n_sets, n_dim, q);
+        for (size_t i=0; i < hdscore.size(); ++i){
+            cout << std::fixed << std::setprecision(2) << hdscore.at(i) << "  ";
+        }
+        cout << "\n";
     }
 
     return 0;

@@ -4,5 +4,5 @@ endif
 
 PCC = g++
 PLFLAGS = $(LFLAGS)
-PCFLAGS = -O2 $(INTT)
+PCFLAGS = -O3 $(INTT)
 

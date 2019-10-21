@@ -195,15 +195,15 @@ _seq<intT> setCover(Graph GS) {
 	inCover[j] = SB[inCover[j]].id;
       nInCover = nInCover + nNew;
       packTime.stop();
-      cout << "i = " << i << " bc = " << currentB.n << " l = " << l << " lb = " << lb
-	   << " work = " << work << " new = " << nNew << " threshold = " << threshold << endl;
+      // cout << "i = " << i << " bc = " << currentB.n << " l = " << l << " lb = " << lb
+	  //  << " work = " << work << " new = " << nNew << " threshold = " << threshold << endl;
     }
   }
   cout << "Set cover size = " << nInCover << endl;
-  cout << "Total work = " << totalWork << endl;
-  cout << "Bucket Time = " << bucketTime.total() << endl;
+  // cout << "Total work = " << totalWork << endl;
+  // cout << "Bucket Time = " << bucketTime.total() << endl;
   cout << "Manis Time = " << manisTime.total() << endl;
-  cout << "Pack Time = " << packTime.total() << endl;
+  // cout << "Pack Time = " << packTime.total() << endl;
 
   free(elts); free(S); free(ST); free(flag);
   freeBuckets(allBuckets);

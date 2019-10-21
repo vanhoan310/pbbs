@@ -40,15 +40,15 @@ $(BENCH) :
 
 # Make all implementation objects
 %.o : %.C $(GLOBAL_REQUIRE) $(BENCH_REQUIRE) $(LOCAL_REQUIRE)
-	$(PCC) $(PCFLAGS) -c $< -o $@
+	$(PCC) $(PCFLAGS) -c $< -o $@ -fopenmp
 
 # Make timing code object file
 $(TIME).o : $(TIME).C $(TIME_GLOBAL_REQUIRE) $(TIME_REQUIRE)
-	$(PCC) $(PCFLAGS) -c $< -o $@
+	$(PCC) $(PCFLAGS) -c $< -o $@ -fopenmp
 
 # Make benchmark
 $(BNCHMRK) : $(TIME).o $(OBJS)
-	$(PCC) $(PLFLAGS) -o $@ $(TIME).o $(OBJS)
+	$(PCC) $(PLFLAGS) -o $@ $(TIME).o $(OBJS) -fopenmp
 
 clean :
 	rm -f $(BNCHMRK) *.o *.pyc

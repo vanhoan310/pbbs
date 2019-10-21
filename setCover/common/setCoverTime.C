@@ -22,6 +22,9 @@
 
 #include <iostream>
 #include <algorithm>
+#include <string>
+#include <fstream>
+#include <cstdio>
 #include "gettime.h"
 #include "utils.h"
 #include "graph.h"
@@ -32,6 +35,7 @@
 #include "setCover.h"
 #include <omp.h>
 #include "util_functions.h"
+#include "grid_cover.h"
 #include <chrono>
 using namespace std;
 using namespace benchIO;
@@ -81,6 +85,52 @@ void timesetCover(graph<intT> G, int rounds, char* outFile) {
   G.del();
 }
 
+template <class T>
+vector<int> run_setcover_binarysearch(vector<vector<T>> & Dist, T d_min, T d_max, int n_points, int n_iters, string dataname, int n_sets)
+{
+    // create the instance 
+    for (int iter=0; iter < n_iters; ++iter)
+    {
+        T L = (d_min + d_max)/2.0;
+        vector<int> instance;
+        create_threshold_data(Dist, L, n_sets, instance);
+        // run setcover
+        int rounds = 1;
+        graph<intT> G = readGraphFromVector<intT>(instance);
+        string outputFile = dataname+"_setcover_sol__.csv";
+        char * oFile = &outputFile[0];
+        timesetCover(G, rounds, oFile);
+        vector<int> set_cover =  parse1DcsvFile2Int(outputFile, 1);
+        std::remove(oFile);
+        int cover_size = (int) set_cover.size();
+        cout << "iter: " << iter << ", n_points: " << n_points << ", set_cover size: " << cover_size << "\n";
+        if (cover_size < n_points){
+            d_max = L;
+        }
+        else{
+            d_min = L;
+        }
+        if(iter == n_iters - 1){ return set_cover; }
+    }
+}
+
+vector<int> fill_in(vector<int> & solution, int n_sets, int n_points){
+    int sol_size = (int) solution.size();
+    if (sol_size != n_points)
+        cout << "fill in solution \n";
+    if (n_points > sol_size){
+       for (int i=0; i < n_points-sol_size; ++i){
+          solution.push_back(rand() % (n_sets-1));
+       }
+      return solution; 
+    }
+    else
+    {
+        vector<int> newsolution(solution.begin(), solution.begin()+n_points);
+        return newsolution;
+    }
+}
+
 int parallel_main(int argc, char* argv[]) {
   // commandLine P(argc, argv, "[-o <outFile>] [-r <rounds>] <inFile>");
   // char* iFile = P.getArgument(0);
@@ -104,39 +154,81 @@ int parallel_main(int argc, char* argv[]) {
     int n_sets = (int) distance_mat.size();
     int n_dim =  (int) distance_mat[0].size();
     cout << "# of items: " << n_sets << ", n_dim: " << n_dim << endl;
-    
-    auto start2 = chrono::steady_clock::now();
-    vector<vector<float>> Dist(n_sets, vector<float>(n_sets,0.0));
-    // #pragma omp parallel for collapse(2)
-    int i,j;
-    #pragma omp parallel for private(i,j)
-    for (i=0; i < n_sets; ++i){
-        for (j=0; j<n_sets; ++j){
-            Dist[i][j] = correlationDistance(distance_mat.at(i), distance_mat.at(j), n_dim);
+
+    int n_boxes = 80000;
+    vector<vector<int>> sc_solutions;
+    if ( n_sets < n_boxes)
+    {
+        start = chrono::steady_clock::now();
+        vector<vector<float>> Dist(n_sets, vector<float>(n_sets,0.0));
+        int i,j; 
+        float d_max = 0.0;
+        #pragma omp parallel for private(i,j)
+        for (i=0; i < n_sets; ++i){
+            for (j=0; j<n_sets; ++j){
+                Dist[i][j] = correlationDistance(distance_mat.at(i), distance_mat.at(j), n_dim);
+                if (Dist[i][j] > d_max){
+                    d_max = Dist[i][j];
+                }
+            }
         }
+        end = chrono::steady_clock::now();
+        cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+
+        d_max = d_max/2.0;
+        float d_min = d_max/100.0;
+        int n_points = min(1000, n_sets);
+        int n_iters = 14;
+        vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_sets);
+        vector<int> fill_setcover = fill_in(setcover, n_sets, n_points);
+        sc_solutions.push_back(fill_setcover);
+
     }
-    auto end2 = chrono::steady_clock::now();
-    cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
+    else 
+    {
+        // run grid box algorithm 
+        auto start2 = chrono::steady_clock::now();
+        int dim_x = 10; double N = 17.0; int L_box = n_boxes;
+        int L_min = min(n_sets/3, L_box-2000); int L_max = min(n_sets/2, L_box+2000);
+        vector<int> box_idx = run_box_binarysearch(distance_mat, dim_x, N, L_min, L_max);
+        auto end2 = chrono::steady_clock::now();
+        cout << "run box algorithm in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
 
-    // create the instance 
-    start2 = chrono::steady_clock::now();
-    vector<int> instance;
-    float L = 0.5;
-    create_threshold_data(Dist, L, n_sets, instance);
-    end2 = chrono::steady_clock::now();
-    cout << "create instance in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
+        start = chrono::steady_clock::now();
+        n_boxes = (int) box_idx.size();
+        vector<vector<float>> Dist(n_boxes, vector<float>(n_boxes,0.0));
+        int i,j; 
+        float d_max = 0.0;
+        #pragma omp parallel for private(i,j)
+        for (i=0; i < n_boxes; ++i){
+            for (j=0; j< n_boxes; ++j){
+                Dist[i][j] = correlationDistance(distance_mat.at(box_idx[i]), distance_mat.at(box_idx[j]), n_dim);
+                if (Dist[i][j] > d_max){
+                    d_max = Dist[i][j];
+                }
+            }
+        }
+        end = chrono::steady_clock::now();
+        cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
 
-    // solve set cover 
-    start2 = chrono::steady_clock::now();
-    int rounds = 1;
-    graph<intT> G = readGraphFromVector<intT>(instance);
-    string outputFile = dataname+"_setcover_sol__.csv";
-    char * oFile = &outputFile[0];
-    timesetCover(G, rounds, oFile);
-    end2 = chrono::steady_clock::now();
-    cout << "solve setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
+        start = chrono::steady_clock::now();
+        d_max = d_max/2.0;
+        float d_min = d_max/100.0;
+        int n_points = 10000;
+        int n_iters = 14;
+        vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_boxes);
+        vector<int> convert_boxid2realid;
+        for(size_t k=0; k < setcover.size(); ++k){
+            convert_boxid2realid.push_back(box_idx[setcover[k]]);
+        }
+        vector<int> fill_setcover = fill_in(convert_boxid2realid, n_sets, n_points);
+        sc_solutions.push_back(fill_setcover);
+        end = chrono::steady_clock::now();
+        cout << "setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+    }
 
+    //write solution to file
+    string fileName = dataname + "_setcover_solutions.csv";
+    writeVec2File(fileName, sc_solutions);
 
-  // graph<intT> G = readGraphFromFile<intT>(iFile);
-  // timesetCover(G, rounds, oFile);
 }

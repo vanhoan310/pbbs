@@ -1,0 +1,2 @@
+SetCover.o: SetCover.cpp SetCover.h SetElement.h LinearMultiArray.h
+Main.o: Main.cpp LinearMultiArray.h SetCover.h SetElement.h

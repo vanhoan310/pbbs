@@ -13,37 +13,37 @@ namespace dataGen {
 
   //#define HASH_MAX_LONG ((unsigned long) 1 << 63)
 
-  template <class T> T hash(intT i);
+  template <class T> T myhash(intT i);
   
   template <>
-  intT hash<intT>(intT i) {
-    return utils::hash(i) & (HASH_MAX_INT-1);}
+  intT myhash<intT>(intT i) {
+    return utils::myhash(i) & (HASH_MAX_INT-1);}
 
   template <>
-  uintT hash<uintT>(intT i) {
-    return utils::hash(i);}
+  uintT myhash<uintT>(intT i) {
+    return utils::myhash(i);}
 
   template <>
-  double hash<double>(intT i) {
-    return ((double) hash<intT>(i)/((double) HASH_MAX_INT));}
+  double myhash<double>(intT i) {
+    return ((double) myhash<intT>(i)/((double) HASH_MAX_INT));}
 
-  /* template <class T> T hash(long i); */
+  /* template <class T> T myhash(long i); */
 
   /* template <> */
-  /* long hash<long>(long i) { */
-  /*   return utils::hash(i) & (HASH_MAX_INT-1);} */
+  /* long myhash<long>(long i) { */
+  /*   return utils::myhash(i) & (HASH_MAX_INT-1);} */
   
   /* template <> */
-  /* int hash<int>(long i) { */
-  /*   return utils::hash(i) & (HASH_MAX_INT-1);} */
+  /* int myhash<int>(long i) { */
+  /*   return utils::myhash(i) & (HASH_MAX_INT-1);} */
 
   /* template <> */
-  /* unsigned int hash<unsigned int>(long i) { */
-  /*   return utils::hash(i);} */
+  /* unsigned int myhash<unsigned int>(long i) { */
+  /*   return utils::myhash(i);} */
 
   /* template <> */
-  /* double hash<double>(long i) { */
-  /*   return ((double) hash<long>(i)/((double) HASH_MAX_INT));} */
+  /* double myhash<double>(long i) { */
+  /*   return ((double) myhash<long>(i)/((double) HASH_MAX_INT));} */
 
 };
 

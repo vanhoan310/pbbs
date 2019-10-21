@@ -264,7 +264,7 @@ struct hashInt {
   typedef intT kType;
   eType empty() {return -1;}
   kType getKey(eType v) {return v;}
-  intT hash(kType v) {return utils::hash(v);}
+  intT hash(kType v) {return utils::myhash(v);}
   int cmp(kType v, kType b) {return (v > b) ? 1 : ((v == b) ? 0 : -1);}
   bool replaceQ(eType v, eType b) {return 0;}
 };

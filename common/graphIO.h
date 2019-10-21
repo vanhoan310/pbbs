@@ -25,6 +25,7 @@
 
 #include "parallel.h"
 #include "IO.h"
+#include <vector>
 
 using namespace benchIO;
 
@@ -180,6 +181,30 @@ namespace benchIO {
     }
     return graph<intT>(v,n,m,In);
   }
+
+template <class intT>
+graph<intT> readGraphFromVector(vector<int> & vv) {
+    intT len = (intT) vv.size();
+    intT * In = newA(intT, len);
+    {parallel_for(intT i=0; i < len; i++) In[i] = vv[i];}
+    //W.del(); // to deal with performance bug in malloc
+    intT n = In[0];
+    intT m = In[1];
+    if (len != n + m + 2) {
+      cout << "Bad input file" << endl;
+      abort();
+    }
+    vertex<intT> *v = newA(vertex<intT>,n);
+    intT* offsets = In+2;
+    intT* edges = In+2+n;
+    parallel_for (intT i=0; i < n; i++) {
+      intT o = offsets[i];
+      intT l = ((i == n-1) ? m : offsets[i+1])-offsets[i];
+      v[i].degree = l;
+      v[i].Neighbors = edges+o;
+    }
+    return graph<intT>(v,n,m,In);
+}
 
 };
 

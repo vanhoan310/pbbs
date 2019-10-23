@@ -38,7 +38,7 @@ int parallel_main(int argc, char* argv[]) {
   intT n = in.first;
   char* fname = in.second;
   double* v = newA(double,n);
-  parallel_for(intT i=0;i<n;i++) v[i] = hash<double>(i);
+  parallel_for(intT i=0;i<n;i++) v[i] = myhash<double>(i);
   writeArrayToFile("Vector",v,n,fname);
   
 }

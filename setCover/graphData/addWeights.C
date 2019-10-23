@@ -45,7 +45,7 @@ int parallel_main(int argc, char* argv[]) {
   edge<intT>* E = In.E;
   wghEdge<intT>* WE = newA(wghEdge<intT>, m);
   parallel_for(intT i=0; i < m; i++) {
-    WE[i] = wghEdge<intT>(E[i].u, E[i].v, hash<double>(i));
+    WE[i] = wghEdge<intT>(E[i].u, E[i].v, myhash<double>(i));
   }
   In.del();
   int r = writeWghEdgeArrayToFile<intT>(wghEdgeArray<intT>(WE,n,m), oFile);

@@ -19,9 +19,15 @@ long int map_box(vector<T> & x, T delta, int dim_x, T N)
 
 vector<pair<long int, long int>> unique_pair(vector<pair<long int, long int>> & solution){
     vector<pair<long int, long int>> result;
+    size_t ealier_index = 0;
     for (size_t i=0; i < solution.size()-1; ++i){
         if (solution[i].second < solution[i+1].second){
-            result.push_back(solution[i]);
+            size_t randspace = 0;
+            if (i > ealier_index){
+                randspace = rand() % (i-ealier_index);
+            }
+            result.push_back(solution[i-randspace]);
+            ealier_index = i;
         }
     }
 

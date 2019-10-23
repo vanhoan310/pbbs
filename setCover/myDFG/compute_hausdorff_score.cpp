@@ -45,15 +45,37 @@ int main(int argc, char* argv[])
     int n_dim =  (int) distance_mat[0].size();
     cout << "# of items: " << n_sets << ", n_dim: " << n_dim << endl;
 
-    string solfilename = dataname+"_setcover_solutions.csv";
-    vector<vector<int>> solutions = parse2DCsvFile(solfilename);
-    int q = max(1, (int) (1e-4* (float) n_sets));
-    for (auto sol: solutions){
-        vector<double> hdscore = HDscore(distance_mat, sol, n_sets, n_dim, q);
-        for (size_t i=0; i < hdscore.size(); ++i){
-            cout << std::fixed << std::setprecision(2) << hdscore.at(i) << "  ";
+    bool indicator_solution = true;
+    if(indicator_solution){
+        string solfilename = "output/" + dataname+"_setcover_indicator_solutions.csv";
+        vector<vector<int>> solutions = parse2DCsvFile(solfilename);
+        int q = max(1, (int) (1e-4* (float) n_sets));
+        for (auto indicator_sol: solutions){
+            vector<int> sol;
+            for (int i=0; i < (int) indicator_sol.size(); ++i){
+                if (indicator_sol.at(i)){
+                    sol.push_back(i);
+                }
+            }
+            vector<double> hdscore = HDscore(distance_mat, sol, n_sets, n_dim, q);
+            cout << "subsample size: " << sol.size() << ", score: ";
+            for (size_t i=0; i < hdscore.size(); ++i){
+                cout << std::fixed << std::setprecision(2) << hdscore.at(i) << "  ";
+            }
+            cout << "\n";
         }
-        cout << "\n";
+    }
+    else{
+        string solfilename = "output/" + dataname+"_setcover_solutions.csv";
+        vector<vector<int>> solutions = parse2DCsvFile(solfilename);
+        int q = max(1, (int) (1e-4* (float) n_sets));
+        for (auto sol: solutions){
+            vector<double> hdscore = HDscore(distance_mat, sol, n_sets, n_dim, q);
+            for (size_t i=0; i < hdscore.size(); ++i){
+                cout << std::fixed << std::setprecision(2) << hdscore.at(i) << "  ";
+            }
+            cout << "\n";
+        }
     }
 
     return 0;

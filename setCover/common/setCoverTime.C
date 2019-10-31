@@ -20,8 +20,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#define OPENMP 1
 
+#define OPENMP 1
 #include <iostream>
 #include <algorithm>
 #include <string>
@@ -64,6 +64,48 @@ void create_threshold_data(vector<vector<T>> & Dist, T LL, int set_size, vector<
                 first_elem_set_idx++;
             }
         }
+    }
+    instance[1] = first_elem_set_idx;
+}
+
+
+template <class T>
+void create_threshold_data(vector<vector<T>> & Dist, T LL, int set_size, vector<int> & instance, vector<int> & labels, int n_splits){
+    // hit every labels, n_splits: split each class into n_splits 
+    int min_label = *std::min_element(labels.begin(), labels.end());
+    for (size_t i=0; i < labels.size(); ++i){
+        labels[i] -= min_label;
+    }
+    for (size_t i=0; i < labels.size(); ++i){
+        labels[i] *= n_splits;
+    }
+    for (size_t i=0; i < labels.size(); ++i){
+        labels[i] += set_size + rand() % n_splits;
+    }
+
+    int n;
+    n=(int) set_size;
+    int total_elem = 0;
+    int first_elem_set_idx = 0;
+    instance.clear(); // clear the vector 
+    instance.push_back(n);
+    instance.push_back(total_elem); // will change later 
+    for (int i=0; i < n; ++i){
+        instance.push_back(i);
+    }
+
+    for(int i = 0; i<n; i++){
+        instance[i+2] = first_elem_set_idx;
+        for(int j = 0; j < n; j++){
+            if(Dist[i][j] <= LL)
+            {
+                instance.push_back(j);
+                first_elem_set_idx++;
+            }
+        }
+        // add hitting set
+        instance.push_back(labels[i]);
+        first_elem_set_idx++;
     }
     instance[1] = first_elem_set_idx;
 }
@@ -167,138 +209,135 @@ int parallel_main(int argc, char* argv[]) {
     for (int i=0; i < n_sets; ++i){
         shuffle_idx.push_back(i);
     }
-    srand(time(0));
-    std::random_shuffle(shuffle_idx.begin(), shuffle_idx.end());
-    vector<vector<double>> distance_mat;
-    for (size_t i=0; i < distance_mat_origin.size(); ++i){
-        distance_mat.push_back(distance_mat_origin[shuffle_idx[i]]);
-    }
-    auto end = chrono::steady_clock::now();
-    cout << "read file in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
-    int n_dim =  (int) distance_mat[0].size();
-    cout << "# of items: " << n_sets << ", n_dim: " << n_dim << endl;
-
-    int n_boxes = 80000;
+    // srand(time(0));
     vector<vector<int>> sc_solutions;
-    // vector<double> pct{0.5, 1.0, 2.0, 4.0, 5.0};
-    vector<double> pct{0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0};
-    vector<int> n_points_vec;
-    for (auto v: pct){
-        n_points_vec.push_back(round((v* (double) n_sets)/100.0));
-    }
-    if ( n_sets < n_boxes)
+    for(int rep=0; rep < 10; ++rep)
     {
-        start = chrono::steady_clock::now();
-        vector<vector<float>> Dist(n_sets, vector<float>(n_sets,0.0));
-        int i,j; 
-        float d_max = 0.0;
-        #pragma omp parallel for private(i,j)
-        for (i=0; i < n_sets; ++i){
-            for (j=0; j<n_sets; ++j){
-                Dist[i][j] = correlationDistance(distance_mat.at(i), distance_mat.at(j), n_dim);
-                if (Dist[i][j] > d_max){
-                    d_max = Dist[i][j];
-                }
-            }
+        std::random_shuffle(shuffle_idx.begin(), shuffle_idx.end());
+        vector<vector<double>> distance_mat;
+        for (size_t i=0; i < distance_mat_origin.size(); ++i){
+            distance_mat.push_back(distance_mat_origin[shuffle_idx[i]]);
         }
-        end = chrono::steady_clock::now();
-        cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+        auto end = chrono::steady_clock::now();
+        cout << "read file in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+        int n_dim =  (int) distance_mat[0].size();
+        cout << "# of items: " << n_sets << ", n_dim: " << n_dim << endl;
 
-        start = chrono::steady_clock::now();
-        d_max = d_max/2.0;
-        float d_min = d_max/100.0;
-        int n_iters = 14;
-        // int n_points = min(10000, n_sets);
-        // vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_sets);
-        // vector<int> fill_setcover = fill_in(setcover, n_sets, n_points);
-        // sc_solutions.push_back(fill_setcover);
-
-        // run for multiple n_points
-        for (auto n_points: n_points_vec){
-            cout << "--------------------- n_points: " << n_points << " ----------------------\n";
-            vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_sets);
-            vector<int> fill_setcover = fill_in(setcover, n_sets, n_points);
-            // convert to original 
-            vector<int> origin_fill_setcover = convert2original_idx(shuffle_idx, fill_setcover);
-            vector<int> sc_indicator(n_sets, 0);
-            for(auto fi: origin_fill_setcover){
-                sc_indicator[fi] = 1;
-            }
-            sc_solutions.push_back(sc_indicator);
+        int n_boxes = 80000;
+        vector<double> pct{1.0, 2.0, 4.0, 6.0, 8.0, 10.0};
+        vector<int> n_points_vec;
+        for (auto v: pct){
+            n_points_vec.push_back(round((v* (double) n_sets)/100.0));
         }
-        end = chrono::steady_clock::now();
-        cout << "setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
-    }
-    else 
-    {
-        // run grid box algorithm 
-        auto start2 = chrono::steady_clock::now();
-        int dim_x = 10; double N = 17.0; int L_box = n_boxes;
-        int L_min = min(n_sets/3, L_box-2000); int L_max = min(n_sets/2, L_box+2000);
-        vector<int> box_idx = run_box_binarysearch(distance_mat, dim_x, N, L_min, L_max);
-        auto end2 = chrono::steady_clock::now();
-        cout << "run box algorithm in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
-        vector<vector<int>> box_vec; 
-        box_vec.push_back(box_idx);
-        writeVec2File("output/" + dataname + "_box_solutions.csv", box_vec);
-
-        // compute distance matrix
-        start = chrono::steady_clock::now();
-        n_boxes = (int) box_idx.size();
-        vector<vector<float>> Dist(n_boxes, vector<float>(n_boxes,0.0));
-        int i,j; 
-        float d_max = 0.0;
-        #pragma omp parallel for private(i,j)
-        for (i=0; i < n_boxes; ++i){
-            for (j=0; j< n_boxes; ++j){
-                Dist[i][j] = correlationDistance(distance_mat.at(box_idx[i]), distance_mat.at(box_idx[j]), n_dim);
-                if (Dist[i][j] > d_max){
-                    d_max = Dist[i][j];
-                }
-            }
-        }
-        end = chrono::steady_clock::now();
-        cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
-
-        // compute set cover 
-        start = chrono::steady_clock::now();
-        d_max = d_max/2.0;
-        float d_min = d_max/100.0;
-        int n_iters = 14;
-        // int n_points = 10000;
-        // vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_boxes);
-        // vector<int> convert_boxid2realid;
-        // for(size_t k=0; k < setcover.size(); ++k){
-        //     convert_boxid2realid.push_back(box_idx[setcover[k]]);
-        // }
-        // vector<int> fill_setcover = fill_in(convert_boxid2realid, n_sets, n_points);
-        // sc_solutions.push_back(fill_setcover);
-        //
-        // run for multiple n_points, save as an indicator vectors 
-        for (auto n_points: n_points_vec)
+        if ( n_sets < n_boxes)
         {
-            assert(n_points <= n_boxes);
-            cout << "--------------------- n_points: " << n_points << " ----------------------\n";
-            vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_boxes);
-            vector<int> convert_boxid2realid;
-            for(size_t k=0; k < setcover.size(); ++k){
-                convert_boxid2realid.push_back(box_idx[setcover[k]]);
+            start = chrono::steady_clock::now();
+            vector<vector<float>> Dist(n_sets, vector<float>(n_sets,0.0));
+            int i,j; 
+            float d_max = 0.0;
+            #pragma omp parallel for private(i,j)
+            for (i=0; i < n_sets; ++i){
+                for (j=0; j<n_sets; ++j){
+                    Dist[i][j] = correlationDistance(distance_mat.at(i), distance_mat.at(j), n_dim);
+                    if (Dist[i][j] > d_max){
+                        d_max = Dist[i][j];
+                    }
+                }
             }
-            vector<int> fill_setcover = fill_in(convert_boxid2realid, n_sets, n_points);
-            // convert to original 
-            vector<int> origin_fill_setcover = convert2original_idx(shuffle_idx, fill_setcover);
-            vector<int> sc_indicator(n_sets, 0);
-            for(auto fi: origin_fill_setcover){
-                sc_indicator[fi] = 1;
+            end = chrono::steady_clock::now();
+            cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+
+            start = chrono::steady_clock::now();
+            d_max = d_max/2.0; float d_min = d_max/100.0; int n_iters = 14;
+            // int n_points = min(10000, n_sets);
+            // vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_sets);
+            // vector<int> fill_setcover = fill_in(setcover, n_sets, n_points);
+            // sc_solutions.push_back(fill_setcover);
+
+            // run for multiple n_points
+            for (auto n_points: n_points_vec){
+                cout << "--------------------- n_points: " << n_points << " ----------------------\n";
+                vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_sets);
+                // vector<int> fill_setcover = fill_in(setcover, n_sets, n_points);
+                vector<int> fill_setcover = setcover;
+                // convert to original 
+                vector<int> origin_fill_setcover = convert2original_idx(shuffle_idx, fill_setcover);
+                vector<int> sc_indicator(n_sets, 0);
+                for(auto fi: origin_fill_setcover){
+                    sc_indicator[fi] = 1;
+                }
+                sc_solutions.push_back(sc_indicator);
             }
-            sc_solutions.push_back(sc_indicator);
             end = chrono::steady_clock::now();
             cout << "setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
         }
+        else 
+        {
+            // run grid box algorithm 
+            auto start2 = chrono::steady_clock::now();
+            int dim_x = 10; double N = 17.0; int L_box = n_boxes;
+            int L_min = min(n_sets/3, L_box-2000); int L_max = min(n_sets/2, L_box+2000);
+            vector<int> box_idx = run_box_binarysearch(distance_mat, dim_x, N, L_min, L_max);
+            auto end2 = chrono::steady_clock::now();
+            cout << "run box algorithm in seconds : " << chrono::duration_cast<chrono::seconds>(end2 - start2).count() << " sec" << endl;
+            vector<vector<int>> box_vec; 
+            box_vec.push_back(box_idx);
+            writeVec2File("output/" + dataname + "_box_solutions.csv", box_vec);
+
+            // compute distance matrix
+            start = chrono::steady_clock::now();
+            n_boxes = (int) box_idx.size();
+            vector<vector<float>> Dist(n_boxes, vector<float>(n_boxes,0.0));
+            int i,j; float d_max = 0.0;
+            #pragma omp parallel for private(i,j)
+            for (i=0; i < n_boxes; ++i){
+                for (j=0; j< n_boxes; ++j){
+                    Dist[i][j] = correlationDistance(distance_mat.at(box_idx[i]), distance_mat.at(box_idx[j]), n_dim);
+                    if (Dist[i][j] > d_max){
+                        d_max = Dist[i][j];
+                    }
+                }
+            }
+            end = chrono::steady_clock::now();
+            cout << "compute distance matrix in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+
+            // compute set cover 
+            start = chrono::steady_clock::now();
+            d_max = d_max/2.0; float d_min = d_max/100.0; int n_iters = 14;
+            // int n_points = 10000;
+            // vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_boxes);
+            // vector<int> convert_boxid2realid;
+            // for(size_t k=0; k < setcover.size(); ++k){
+            //     convert_boxid2realid.push_back(box_idx[setcover[k]]);
+            // }
+            // vector<int> fill_setcover = fill_in(convert_boxid2realid, n_sets, n_points);
+            // sc_solutions.push_back(fill_setcover);
+            //
+            // run for multiple n_points, save as an indicator vectors 
+            for (auto n_points: n_points_vec)
+            {
+                assert(n_points <= n_boxes);
+                cout << "--------------------- n_points: " << n_points << " ----------------------\n";
+                vector<int> setcover = run_setcover_binarysearch(Dist, d_min, d_max, n_points, n_iters, dataname, n_boxes);
+                vector<int> convert_boxid2realid;
+                for(size_t k=0; k < setcover.size(); ++k){
+                    convert_boxid2realid.push_back(box_idx[setcover[k]]);
+                }
+                // vector<int> fill_setcover = fill_in(convert_boxid2realid, n_sets, n_points);
+                vector<int> fill_setcover = convert_boxid2realid;
+                // convert to original 
+                vector<int> origin_fill_setcover = convert2original_idx(shuffle_idx, fill_setcover);
+                vector<int> sc_indicator(n_sets, 0);
+                for(auto fi: origin_fill_setcover){
+                    sc_indicator[fi] = 1;
+                }
+                sc_solutions.push_back(sc_indicator);
+                end = chrono::steady_clock::now();
+                cout << "setcover in seconds : " << chrono::duration_cast<chrono::seconds>(end - start).count() << " sec" << endl;
+            }
+        }
     }
     //write solution to file
-    // string fileName = dataname + "_setcover_solutions.csv";
-    string fileName = "output/" + dataname + "_setcover_indicator_solutions.csv";
+    string fileName = "output/" + dataname + "_hitting_setcover_indicator_solutions.csv";
     writeVec2File(fileName, sc_solutions);
-
 }

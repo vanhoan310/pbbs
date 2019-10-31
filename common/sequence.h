@@ -29,6 +29,8 @@
 using namespace std;
 
 #define _BSIZE 2048
+// #define _SCAN_LOG_BSIZE 10
+// #define _BSIZE 16384
 #define _SCAN_LOG_BSIZE 10
 #define _SCAN_BSIZE (1 << _SCAN_LOG_BSIZE)
 
